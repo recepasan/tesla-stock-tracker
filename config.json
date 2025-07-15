@@ -1,0 +1,19 @@
+{
+    "telegram": {
+        "bot_token": "YOUR_BOT_TOKEN_HERE",
+        "chat_id": "YOUR_CHAT_ID_HERE"
+    },
+    "proxies": [
+        "http://proxy1.example.com:8080",
+        "http://proxy2.example.com:8080"
+    ],
+    "base_ips": [
+        "78.181",
+        "85.100",
+        "88.247"
+    ],
+    "notification_cooldown_hours": 24,
+    "max_notifications_per_vin": 3,
+    "vin_cleanup_days": 7,
+    "check_interval_seconds": 30
+}
