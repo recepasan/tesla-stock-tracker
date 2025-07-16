@@ -111,6 +111,72 @@ def format_price_as_tl(price):
     except (ValueError, TypeError) as e:
         logger.warning(f"Fiyat biçimlendirilemedi: {str(e)}")
         return f"{price} ₺"
+    
+
+def extract_car_features(car_data: Dict[str, Any]) -> Dict[str, str]:
+    """Araç verilerinden özellik bilgilerini çıkarır."""
+    features = {}
+    
+    try:
+        option_specs = car_data.get('OptionCodeSpecs', {})
+        
+        # Specs bilgilerini çıkar
+        specs = option_specs.get('C_SPECS', {}).get('options', [])
+        for spec in specs:
+            if spec.get('code') == 'SPECS_RANGE':
+                features['range'] = spec.get('name', '')
+            elif spec.get('code') == 'SPECS_TOP_SPEED':
+                features['top_speed'] = spec.get('name', '')
+            elif spec.get('code') == 'SPECS_ACCELERATION':
+                features['acceleration'] = spec.get('name', '')
+        
+        # Options bilgilerini çıkar
+        options = option_specs.get('C_OPTS', {}).get('options', [])
+        for option in options:
+            lexicon_group = option.get('lexiconGroup', '').lower()
+            if lexicon_group == 'paint':
+                features['paint'] = option.get('name', '')
+            elif lexicon_group == 'wheels':
+                features['wheels'] = option.get('name', '')
+            elif lexicon_group == 'interior':
+                features['interior'] = option.get('name', '')
+            elif lexicon_group == 'rear_seats':
+                features['seats'] = option.get('name', '')
+            elif lexicon_group == 'autopilot':
+                features['autopilot'] = option.get('name', '')
+        
+    except Exception as e:
+        logger.warning(f"Araç özellikleri çıkarılırken hata: {str(e)}")
+    
+    return features
+
+def format_features_text(features: Dict[str, str]) -> str:
+    """Özellik bilgilerini metin formatında düzenler."""
+    feature_lines = []
+    
+    # Performans özellikleri
+    if features.get('range'):
+        feature_lines.append(f"🔋 Menzil: {features['range']}")
+    if features.get('acceleration'):
+        feature_lines.append(f"⚡ 0-60 mph: {features['acceleration']}")
+    if features.get('top_speed'):
+        feature_lines.append(f"🏎️ Maksimum Hız: {features['top_speed']}")
+    
+    # Tasarım özellikleri
+    if features.get('paint'):
+        feature_lines.append(f"🎨 Renk: {features['paint']}")
+    if features.get('wheels'):
+        feature_lines.append(f"⚙️ Jantlar: {features['wheels']}")
+    if features.get('interior'):
+        feature_lines.append(f"🪑 İç Mekan: {features['interior']}")
+    if features.get('seats'):
+        feature_lines.append(f"👥 Koltuk: {features['seats']}")
+    
+    # Ek özellikler
+    if features.get('autopilot'):
+        feature_lines.append(f"🤖 {features['autopilot']}")
+    
+    return '\n'.join(feature_lines)
 
 async def send_telegram_message(car: Dict[str, Any], is_repeat: bool = False) -> bool:
     """Verilen araç bilgilerini Telegram'a gönderir, gerekirse yeniden dener."""
@@ -132,11 +198,19 @@ async def send_telegram_message(car: Dict[str, Any], is_repeat: bool = False) ->
             notification_info = ""
             if is_repeat and 'notification_count' in vin_data:
                 notification_info = f"\n📊 {vin_data['notification_count']}. bildirim"
+
+            features = extract_car_features(car)
+            features_text = format_features_text(features)
+
+            message_text = f"{status_text}\n\n📱 Araç Modeli: {car['TrimName']}\n💰 Fiyat: {formatted_price}\n🔢 VIN: {car['VIN']}{notification_info}"
+
+            if features_text:
+                message_text += f"\n\n🔧 Özellikler:\n{features_text}"
             
             data = {
                 "chat_id": config['telegram']['chat_id'],
                 "photo": image_url,
-                "caption": f"{status_text}\n\nAraç Modeli: {car['TrimName']}\nFiyat: {formatted_price}\nVIN: {car['VIN']}{notification_info}",
+                "caption": message_text,
                 "reply_markup": {
                     "inline_keyboard": [
                         [{
